@@ -61,8 +61,8 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		char onlyTranslation = 't';// 't' when we do not want rotation
-		int prox = 3; // interpolation over 'prox' closest particles
+		char onlyTranslation = 'r';// 't' when we do not want rotation
+		int prox = 1; // interpolation over 'prox' closest particles
 		std::vector<int> temp(prox);
 		std::vector<double> tempd2(prox);
 		std::vector<Vector3d> tempdVec(prox);

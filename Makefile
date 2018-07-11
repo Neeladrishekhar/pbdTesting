@@ -34,7 +34,7 @@ stressTest:Particle.o stressTest.o
 	$(CC) $(LFLAGS) $^ $(GLFLAGS) -fopenmp -o $@
 
 %.o: %.cpp
-	$(CC) -c $< $(CFLAGS) -o $@
+	$(CC) -c -fopenmp $< $(CFLAGS) -o $@
 
 meta/interpolatedParticlesAlpha: interpolatedParticles meta/collisionReduceOut
 	cat $^ > $@

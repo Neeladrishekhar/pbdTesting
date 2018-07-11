@@ -42,10 +42,28 @@ std::vector< std::vector<Vector3i> > Muscle_interTris;
 std::vector< std::vector<Vector3d> > Muscle_interTrisLen;
 bool onlyTranslation;
 
-int stuck_arr[] = {0,1,2,43,44,45,46,74,75,76,105,106,107,108,143,144,145,146,147,183,194,201,202,216,217,218,219,220,250,251,252,253,254,281,317,349,359,360,361,370,383,384,386,402,404,405};
-std::vector<int> stuck(stuck_arr, stuck_arr + sizeof(stuck_arr) / sizeof(int) );
-int moved_arr[] = {40,41,47,48,49,101,102,103,104,136,139,140,141,142,180,181,182,193,195,196,197,198,246,247,248,249,278,279,280,313,314,315,316,344,345,346,347,348,354,369,382,394,399};
-std::vector<int> moved(moved_arr, moved_arr + sizeof(moved_arr) / sizeof(int) );
+std::vector<bool> controlParticles;
+std::vector<std::vector<int> > boneParticles(3);
+int clavicle_arr[] = {105,106,107,108};
+std::vector<int> clavicle(clavicle_arr, clavicle_arr + sizeof(clavicle_arr) / sizeof(int) );
+int scapula_arr[] = {0,1,2,43,44,45,46,74,75,76,183,216,217,218,219,250};
+std::vector<int> scapula(scapula_arr, scapula_arr + sizeof(scapula_arr) / sizeof(int) );
+Vector3d humerusPivot(7.5779,-16.2654,131.5013);
+Matrix3d humerusRot = Matrix3d::Identity();
+int humerus_arr[] = {47,48,49,98,101,102,104,136,139,140,141,142,143,144,145,148,149,157,159,160,165,169,172,174,186,193,194,195,197,
+				199,200,201,204,208,209,246,247,248,249,251,252,253,254,281,282,283,284,285,286,288,289,290,291,317,318,361,383,
+				384,386,404,405};
+std::vector<int> humerus(humerus_arr, humerus_arr + sizeof(humerus_arr) / sizeof(int) );
+Vector3d ulnaPivot(6.4562,-20.8208,103.8195);
+Matrix3d ulnaRot = Matrix3d::Identity();
+int ulna_arr[] = {40,41,180,181,182,196,214,215,313,314,315,316,349,362,365,370,371,372,377,378,380,381,382,399,401,402,403,408};
+std::vector<int> ulna(ulna_arr, ulna_arr + sizeof(ulna_arr) / sizeof(int) );
+int radius_arr[] = {278,279,280,345,346,347,348,354,357,364,369,392,393,394};
+std::vector<int> radius(radius_arr, radius_arr + sizeof(radius_arr) / sizeof(int) );
+// int stuck_arr[] = {0,1,2,43,44,45,46,74,75,76,105,106,107,108,143,144,145,146,147,183,194,201,202,216,217,218,219,220,250,251,252,253,254,281,317,349,359,360,361,370,383,384,386,402,404,405};
+// std::vector<int> stuck(stuck_arr, stuck_arr + sizeof(stuck_arr) / sizeof(int) );
+// int moved_arr[] = {40,41,47,48,49,101,102,103,104,136,139,140,141,142,180,181,182,193,195,196,197,198,246,247,248,249,278,279,280,313,314,315,316,344,345,346,347,348,354,369,382,394,399};
+// std::vector<int> moved(moved_arr, moved_arr + sizeof(moved_arr) / sizeof(int) );
 
 class Shape
 {
@@ -62,18 +80,21 @@ public:
 		GLfloat tBlue[] = {0.f, 0.f, .8f, 1.f};
 		GLfloat tMusc[] = {.8f, .2f, .1f, 1.f};
 		// GLfloat blue[] = {0.f, 0.f, .8f, 1.f};
-		int stu = 0,mov = 0; Matrix4d mat4 = Matrix4d::Identity();
+		// int stu = 0,mov = 0; 
+		Matrix4d mat4 = Matrix4d::Identity();
 		for (int i = 0; i < particles.size(); ++i) {
 			glTranslatef(particles[i].pos.x(), particles[i].pos.y(), particles[i].pos.z());
 			mat4.block(0,0,3,3) = particles[i].mat3_rot;
 			glMultMatrixd(mat4.data());
 			// render_particle(0.5f, 0.36f, 0.25f, ((i<3 || i==40 || i==41 || (i>=43 && i<50) || (i>=74 && i<77) || (i>=101 && i<105)) ? red : green));
-			if (i == stuck[stu]) {
-				render_particle(particles[i].size, tBlue);
-				if (stu < stuck.size()-1) stu += 1;
-			} else if (i == moved[mov]) {
+			// if (i == stuck[stu]) {
+			// 	render_particle(particles[i].size, tBlue);
+			// 	if (stu < stuck.size()-1) stu += 1;
+			// } else if (i == moved[mov]) {
+			// 	render_particle(particles[i].size, red);
+			// 	if (mov < moved.size()-1) mov += 1;
+			if (controlParticles[i]) {
 				render_particle(particles[i].size, red);
-				if (mov < moved.size()-1) mov += 1;
 			} else {
 				render_particle(particles[i].size, green);
 			}
@@ -94,8 +115,9 @@ public:
 		}
 		
 		GLfloat tColor[] = {0.f, 0.f, .8f, .6f};
-		#pragma omp parallel for
+		// #pragma omp parallel for
 		for (int muscleCount = 0; muscleCount < Muscle_interTris.size(); ++muscleCount) {
+			// std::cout << "Hello World! " << omp_get_thread_num() << " of " << omp_get_num_threads() << std::endl;
 			
 			std::vector<std::vector<int> > interP = Muscle_interP[muscleCount];
 			std::vector<std::vector<double> > interPw = Muscle_interPw[muscleCount];
@@ -122,7 +144,9 @@ public:
 				stress *= 4;
 				Vector3d colorScale(std::max(std::min(stress.x(),1.0),-1.0), std::max(std::min(stress.y(),1.0),-1.0), std::max(std::min(stress.z(),1.0),-1.0));
 				std::vector<Vector3d> colors(3);
-				for (int t = 0; t < 3; ++t) { colors[t][0] = std::max(0.0, colorScale[t]); colors[t][2] = -1.0 * std::min(0.0, colorScale[t]); colors[t][1] = 1.0 - std::max(colorScale[t], -1*colorScale[t]); }
+				// for (int t = 0; t < 3; ++t) { colors[t][0] = std::max(0.0, colorScale[t]); colors[t][2] = -1.0 * std::min(0.0, colorScale[t]); colors[t][1] = 1.0 - std::max(colorScale[t], -1*colorScale[t]); }
+				double grey = 0.2;
+				for (int t = 0; t < 3; ++t) { colors[t][0] = 1-((1 - std::max(0.0, colorScale[t]))*(1-grey)); colors[t][2] = 1-((1 - (-1.0 * std::min(0.0, colorScale[t])))*(1-grey)); colors[t][1] = grey; }
 
 				// glBegin(GL_TRIANGLES);
 				glBegin(GL_POLYGON);
@@ -258,7 +282,7 @@ void idle_func() {
 	}
 
 	// while (constraint(model_cur.particles)) {
-	int step = 1;
+	int step = 2;
 	while (step--) {
 
 		// int collisionHappens = 0;
@@ -278,15 +302,32 @@ void idle_func() {
 		// if (collisionHappens > 4) {step += 1; std::cout << idle_num << " " << collisionHappens << " Collision occured" << std::endl; } // ideally
 
 		// apply_constraint(model_cur.particles);
-		double vis = 0.125*idle_num; int vist = vis/10; vis -= vist*10.0; if (vis > 5) vis = 5-(vis-5); vis/=2.0;
+		int maxVal = 100;
+		double vis = 0.25*idle_num; int vist = vis/(2*maxVal); vis -= vist*2*maxVal; if (vis > maxVal) vis = maxVal-(vis-maxVal);// vis/=2.0;
 		// vis = 0.0;
 		// int stuck[] = {0,1,2,43,44,45,46,74,75,76,105,106,107,108,143,144,145,146,147,183,194,201,202,216,217,218,219,220,250,251,252,
 		// 		253,254,281,317,349,359,360,361,370,383,384,386,402,404,405};
 		// int moved[] = {40,41,47,48,49,101,102,103,104,136,139,140,141,142,180,181,182,193,195,196,197,198,246,247,248,249,278,279,280,
 		// 		313,314,315,316,344,345,346,347,348,354,369,382,394,399};
-		
+		// std::cout << vis << " " << idle_num << std::endl;
+		// #pragma omp parallel for
+		for (int i = 0; i < boneParticles[0].size(); ++i) {
+			model_cur.particles[boneParticles[0][i]].pos = model_base.particles[boneParticles[0][i]].pos;
+		}
+		// humerusRot = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
+		// #pragma omp parallel for
+		for (int i = 0; i < boneParticles[1].size(); ++i) {
+			model_cur.particles[boneParticles[1][i]].pos = (humerusRot * (model_base.particles[boneParticles[1][i]].pos - humerusPivot)) + humerusPivot;
+		}
+		ulnaRot = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
+		// #pragma omp parallel for
+		for (int i = 0; i < boneParticles[2].size(); ++i) {
+			model_cur.particles[boneParticles[2][i]].pos = (ulnaRot * (model_base.particles[boneParticles[2][i]].pos - ulnaPivot)) + ulnaPivot;
+			model_cur.particles[boneParticles[2][i]].pos = (humerusRot * (model_cur.particles[boneParticles[2][i]].pos - humerusPivot)) + humerusPivot;
+		}
+		/*
 		Matrix3d Rotate;
-		Rotate = AngleAxisd(vis*5*M_PI/180, -1*Vector3d::UnitX());
+		Rotate = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
 		// int cut = 184, pivot = 188;
 		double cutZ = 127.242; Vector3d pivot(9.09645,-13.9159,130.049);
 		// if (idle_num == 0) {
@@ -311,6 +352,7 @@ void idle_func() {
 				model_cur.particles[moved[i]].set_rotation(model_base.particles[moved[i]].mat3_rot);
 			}
 		}
+		*/
 		// for (int i = 0; i < moved.size(); ++i){
 		// 	model_cur.particles[moved[i]].pos = Vector3d(0,0,0.0-vis) + model_base.particles[moved[i]].pos;
 		// 	model_cur.particles[moved[i]].set_rotation(model_base.particles[moved[i]].mat3_rot);
@@ -354,6 +396,7 @@ void idle_func() {
 			double M = model_cur.particles[i].mass;
 			Vector3d c = model_cur.particles[i].mass * model_cur.particles[i].pos;
 			Vector3d c_base = model_base.particles[i].mass * model_base.particles[i].pos;
+			// #pragma omp parallel for
 			for (int j = 0; j < model.groups[i].size(); ++j) {
 				A += model_cur.particles[model.groups[i][j]].A;
 				A += model_cur.particles[model.groups[i][j]].mass * model_cur.particles[model.groups[i][j]].pos * model_base.particles[model.groups[i][j]].pos.transpose();
@@ -380,6 +423,7 @@ void idle_func() {
 			}
 		}
 
+		#pragma omp parallel for
 		for (int i = 0; i < model_cur.particles.size(); ++i) {
 			model_cur.particles[i].pos += 1*(goals[i] - model_cur.particles[i].pos);
 			model_cur.particles[i].set_rotation(Rs[i]*model_base.particles[i].mat3_rot); /// this might be wrong
@@ -543,18 +587,41 @@ int main(int argc, char **argv) {
 		Muscle_interTrisLen.push_back(interTrisLen);
 	}
 
+	std::cout << "All inputs taken" << std::endl;
+	// std::vector<int> tempVec;
+	// boneParticles.push_back(tempVec);
+	// boneParticles.push_back(tempVec);
+	// boneParticles.push_back(tempVec);
+	for (int i = 0; i < clavicle.size() ; ++i) boneParticles[0].push_back(clavicle[i]);
+	for (int i = 0; i < scapula.size() ; ++i) boneParticles[0].push_back(scapula[i]);
+	for (int i = 0; i < humerus.size() ; ++i) boneParticles[1].push_back(humerus[i]);
+	for (int i = 0; i < ulna.size() ; ++i) boneParticles[2].push_back(ulna[i]);
+	for (int i = 0; i < radius.size() ; ++i) boneParticles[2].push_back(radius[i]);
+	std::vector<bool> tempo(particles.size(), false);
+	for (int i = 0; i < boneParticles.size(); ++i){
+		for (int m = 0; m < boneParticles[i].size(); ++m) {
+			tempo[boneParticles[i][m]] = true;
+		}
+	} controlParticles = tempo;
+
 	if (remapReq) {
 		int wholeN; std::cin >> wholeN;
 		std::vector<int> particleMap(wholeN);
 		for (int i = 0; i < particleMap.size(); ++i) std::cin >> particleMap[i];
-		std::vector<int> stuckNew;
-		for (int i = 0; i < stuck.size(); ++i) {
-			if (particleMap[stuck[i]] >= 0) stuckNew.push_back(particleMap[stuck[i]]);
-		} stuck = stuckNew;
-		std::vector<int> movedNew;
-		for (int i = 0; i < moved.size(); ++i) {
-			if (particleMap[moved[i]] >= 0) movedNew.push_back(particleMap[moved[i]]);
-		} moved = movedNew;
+		// std::vector<int> stuckNew;
+		// for (int i = 0; i < stuck.size(); ++i) {
+		// 	if (particleMap[stuck[i]] >= 0) stuckNew.push_back(particleMap[stuck[i]]);
+		// } stuck = stuckNew;
+		// std::vector<int> movedNew;
+		// for (int i = 0; i < moved.size(); ++i) {
+		// 	if (particleMap[moved[i]] >= 0) movedNew.push_back(particleMap[moved[i]]);
+		// } moved = movedNew;
+		for (int i = 0; i < boneParticles.size(); ++i) {
+			std::vector<int> bonePartNew;
+			for (int m = 0; m < boneParticles[i].size(); ++m) {
+				if (particleMap[boneParticles[i][m]] >= 0) bonePartNew.push_back(particleMap[boneParticles[i][m]]);
+			} boneParticles[i] = bonePartNew;
+		}
 	}
 
 	if (handleCollision){
