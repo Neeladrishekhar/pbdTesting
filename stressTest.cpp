@@ -82,7 +82,7 @@ public:
 		// std::cout << "shape render taken!" << std::endl;
 		GLfloat red[] = {.8f, 0.f, 0.f, 1.f};
 		GLfloat green[] = {0.f, .8f, 0.f, 1.f};
-		GLfloat magenta[] = {.8f, 0.f, .8f, 1.f};
+		GLfloat yellow[] = {.8f, .8f, 0.f, 1.f};
 		GLfloat tBlue[] = {0.f, 0.f, .8f, 1.f};
 		GLfloat tMusc[] = {.8f, .2f, .1f, 1.f};
 		// GLfloat blue[] = {0.f, 0.f, .8f, 1.f};
@@ -115,7 +115,7 @@ public:
 		}
 		
 		GLfloat tColor[] = {0.f, 0.f, .8f, .6f};
-		for (int muscleCount = 0; muscleCount < Muscle_interTris.size(); ++muscleCount) {
+		for (int muscleCount = 0; muscleCount < Muscle_interTris.size(); ++muscleCount) { //if (muscleCount > 0) continue;
 			// std::cout << "Hello World! " << omp_get_thread_num() << " of " << omp_get_num_threads() << std::endl;
 			
 			std::vector<std::vector<int> > interP = Muscle_interP[muscleCount];
@@ -141,10 +141,10 @@ public:
 				Vector3d nor = ((tria[1]-tria[0]).cross(tria[2]-tria[0])).normalized();
 
 				if (handleCollision && collisionTriangles[muscleCount][i]) {
-					collisionTriangles[muscleCount][i] = false;
+					if (!pauseManual) collisionTriangles[muscleCount][i] = false;
 					glBegin(GL_TRIANGLES);
 					glNormal3f(nor.x(),nor.y(),nor.z());
-					glMaterialfv(GL_FRONT, GL_DIFFUSE, magenta);
+					glMaterialfv(GL_FRONT, GL_DIFFUSE, yellow);
 					glVertex3f(tria[0].x(),tria[0].y(),tria[0].z());
 					glVertex3f(tria[1].x(),tria[1].y(),tria[1].z());
 					glVertex3f(tria[2].x(),tria[2].y(),tria[2].z());
@@ -187,8 +187,6 @@ public:
 Shape model, model_base;
 Vector3d lookAt(3,-15,120);
 Vector3d eyePos(20,20,120);
-// Vector3d lookAt(3,-15,103);
-// Vector3d eyePos(20,20,103);
 
 void render(){
 	// std::cout << "Render taken!" << std::endl;
@@ -246,11 +244,13 @@ void keyboard_func(unsigned char key, int x, int y){
 		m = AngleAxisd(M_PI/36, Vector3d::UnitZ());
 		eyePos = (m * (eyePos - lookAt)) + lookAt; glutPostRedisplay();
 		// eyePos += Vector3d(cam_speed,0,0); glutPostRedisplay();
+		std::cout << "eyePos : " << eyePos << std::endl;
 		break;
 	case 'a':
 		m = AngleAxisd(-M_PI/36, Vector3d::UnitZ());
 		eyePos = (m * (eyePos - lookAt)) + lookAt; glutPostRedisplay();
 		// eyePos += Vector3d(-cam_speed,0,0); glutPostRedisplay();
+		std::cout << "eyePos : " << eyePos << std::endl;
 		break;
 	default:
 		break;
@@ -394,13 +394,14 @@ void idle_func() {
 					if ((nor.dot(model_cur.particles[s].pos+(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) * (nor.dot(model_cur.particles[s].pos-(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) >= 0) continue;
 		
 					Vector3d planeIntersectionPoint = model_cur.particles[s].pos + (((nor.dot(tria[0]-model_cur.particles[s].pos))/nor.squaredNorm()) * nor);
+					planeIntersectionPoint -= tria[0];
 					double alpha = ((planeIntersectionPoint.x()*side2.y())-(planeIntersectionPoint.y()*side2.x()))/((side1.x()*side2.y())-(side1.y()*side2.x()));
 					double beta = ((planeIntersectionPoint.x()*side1.y())-(planeIntersectionPoint.y()*side1.x()))/((side2.x()*side1.y())-(side2.y()*side1.x()));
 					if (alpha < 0.0 || beta < 0.0 || alpha+beta > 1.0) {
-						collisionTriangles[muscleCount][i] = true;
 						continue;
 					} else { // there is a collision
-						model_cur.particles[s].pos = planeIntersectionPoint + (model_cur.particles[s].size.x()+0.0001)*nor;
+						collisionTriangles[muscleCount][i] = true;
+						model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
 					}
 				}
 			}
