@@ -64,9 +64,13 @@ std::vector<int> radius(radius_arr, radius_arr + sizeof(radius_arr) / sizeof(int
 // std::vector<int> stuck(stuck_arr, stuck_arr + sizeof(stuck_arr) / sizeof(int) );
 // int moved_arr[] = {40,41,47,48,49,101,102,103,104,136,139,140,141,142,180,181,182,193,195,196,197,198,246,247,248,249,278,279,280,313,314,315,316,344,345,346,347,348,354,369,382,394,399};
 // std::vector<int> moved(moved_arr, moved_arr + sizeof(moved_arr) / sizeof(int) );
+std::vector<std::vector<Vector3d> > boneVerticies;
+std::vector<std::vector<Vector3i> > boneTriangles;
 
 std::vector<std::vector<bool> > collisionTriangles;
+std::vector<std::vector<bool> > collBoneTriangles;
 bool handleCollision = false;
+bool useBones = false;
 bool pauseManual = false;
 
 class Shape
@@ -180,13 +184,52 @@ public:
 				glEnd();
 			}
 		}
-		
+
+		if (useBones) {
+			GLfloat boneColor[] = {.8f, .8f, .8f, 1.f};
+			for (int boneIdx = 0; boneIdx < boneTriangles.size(); ++boneIdx) {
+				for (int triaIdx = 0; triaIdx < boneTriangles[boneIdx].size(); ++triaIdx) {
+					std::vector<Vector3d> tria(3);
+					
+					// scapula and clavicle
+					tria[0] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].x()];
+					tria[1] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].y()];
+					tria[2] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].z()];
+					// humerus
+					if (boneIdx == 2) {
+						tria[0] = (humerusRot * (tria[0] - humerusPivot)) + humerusPivot;
+						tria[1] = (humerusRot * (tria[1] - humerusPivot)) + humerusPivot;
+						tria[2] = (humerusRot * (tria[2] - humerusPivot)) + humerusPivot;
+					// ulna and radius
+					} else if (boneIdx > 2) {
+						tria[0] = (ulnaRot * (tria[0] - ulnaPivot)) + ulnaPivot; tria[0] = (humerusRot * (tria[0] - humerusPivot)) + humerusPivot;
+						tria[1] = (ulnaRot * (tria[1] - ulnaPivot)) + ulnaPivot; tria[1] = (humerusRot * (tria[1] - humerusPivot)) + humerusPivot;
+						tria[2] = (ulnaRot * (tria[2] - ulnaPivot)) + ulnaPivot; tria[2] = (humerusRot * (tria[2] - humerusPivot)) + humerusPivot;
+					}
+
+					Vector3d nor = ((tria[1]-tria[0]).cross(tria[2]-tria[0])).normalized();
+					glBegin(GL_TRIANGLES);
+					glNormal3f(nor.x(),nor.y(),nor.z());
+					if (handleCollision && collBoneTriangles[boneIdx][triaIdx]) {
+						if (!pauseManual) collBoneTriangles[boneIdx][triaIdx] = false;
+						glMaterialfv(GL_FRONT, GL_DIFFUSE, yellow);
+					} else {
+						glMaterialfv(GL_FRONT, GL_DIFFUSE, boneColor);
+					}
+					glVertex3f(tria[0].x(),tria[0].y(),tria[0].z());
+					glVertex3f(tria[1].x(),tria[1].y(),tria[1].z());
+					glVertex3f(tria[2].x(),tria[2].y(),tria[2].z());
+					glEnd();
+				}
+			}
+		}
 	}
 };
 
 Shape model, model_base;
 Vector3d lookAt(3,-15,120);
-Vector3d eyePos(20,20,120);
+// Vector3d eyePos(20,20,120);
+Vector3d eyePos(7,24,120);
 
 void render(){
 	// std::cout << "Render taken!" << std::endl;
@@ -243,14 +286,12 @@ void keyboard_func(unsigned char key, int x, int y){
 	case 'd':
 		m = AngleAxisd(M_PI/36, Vector3d::UnitZ());
 		eyePos = (m * (eyePos - lookAt)) + lookAt; glutPostRedisplay();
-		// eyePos += Vector3d(cam_speed,0,0); glutPostRedisplay();
-		std::cout << "eyePos : " << eyePos << std::endl;
+		// std::cout << "eyePos : " << eyePos << std::endl;
 		break;
 	case 'a':
 		m = AngleAxisd(-M_PI/36, Vector3d::UnitZ());
 		eyePos = (m * (eyePos - lookAt)) + lookAt; glutPostRedisplay();
-		// eyePos += Vector3d(-cam_speed,0,0); glutPostRedisplay();
-		std::cout << "eyePos : " << eyePos << std::endl;
+		// std::cout << "eyePos : " << eyePos << std::endl;
 		break;
 	default:
 		break;
@@ -265,6 +306,8 @@ std::vector<int> muscles;
 int idle_num = 0;
 std::vector<std::vector<int> > probableMuscleCollIdx;
 std::vector<std::vector<int> > probableTriangleCollIdx;
+std::vector<std::vector<int> > probableBoneCollIdx;
+std::vector<std::vector<int> > probableTriBoneCollIdx;
 
 // void idle_func() {}
 void idle_func() {
@@ -404,6 +447,32 @@ void idle_func() {
 						model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
 					}
 				}
+				if (useBones) {
+					for (int closeTrias = 0; closeTrias < probableBoneCollIdx[s].size(); ++closeTrias){
+						int triaCount = probableTriBoneCollIdx[s][closeTrias], boneCount = probableBoneCollIdx[s][closeTrias];
+						std::vector<Vector3d> tria(3);
+						tria[0] = boneVerticies[boneCount][boneTriangles[boneCount][triaCount].x()];
+						tria[1] = boneVerticies[boneCount][boneTriangles[boneCount][triaCount].y()];
+						tria[2] = boneVerticies[boneCount][boneTriangles[boneCount][triaCount].z()];
+						Vector3d side1 = tria[1]-tria[0];
+						Vector3d side2 = tria[2]-tria[0];
+						Vector3d nor = (side1.cross(side2)).normalized();
+						// using normal and triangle verticies for collision
+			
+						if ((nor.dot(model_cur.particles[s].pos+(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) * (nor.dot(model_cur.particles[s].pos-(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) >= 0) continue;
+			
+						Vector3d planeIntersectionPoint = model_cur.particles[s].pos + (((nor.dot(tria[0]-model_cur.particles[s].pos))/nor.squaredNorm()) * nor);
+						planeIntersectionPoint -= tria[0];
+						double alpha = ((planeIntersectionPoint.x()*side2.y())-(planeIntersectionPoint.y()*side2.x()))/((side1.x()*side2.y())-(side1.y()*side2.x()));
+						double beta = ((planeIntersectionPoint.x()*side1.y())-(planeIntersectionPoint.y()*side1.x()))/((side2.x()*side1.y())-(side2.y()*side1.x()));
+						if (alpha < 0.0 || beta < 0.0 || alpha+beta > 1.0) {
+							continue;
+						} else { // there is a collision
+							collBoneTriangles[boneCount][triaCount] = true;
+							model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
+						}
+					}	
+				}
 			}
 		}
 	}
@@ -441,7 +510,16 @@ int main(int argc, char **argv) {
 	if (argc == 2) {
 		if (argv[1][0] == 'c') handleCollision = true;
 		else if (argv[1][0] == 'l') remapReq = true;
-	} else if (argc == 3) {handleCollision = true; remapReq = true;}
+		else if (argv[1][0] == 'b') useBones = true;
+	} else if (argc == 3) {
+		if (argv[1][0] == 'b') {
+			useBones = true;
+			if (argv[2][0] == 'c') handleCollision = true;
+			else if (argv[2][0] == 'l') remapReq = true;
+		} else {handleCollision = true; remapReq = true;}
+	} else if (argc == 4) {
+		handleCollision = true; remapReq = true; useBones = true;
+	}
 	if (remapReq) std::cout << "we will reduce muscles" << std::endl;
 	if (handleCollision) std::cout << "we will handle collision" << std::endl;
 
@@ -530,7 +608,6 @@ int main(int argc, char **argv) {
 	if (remapReq) {
 		int wholeN; std::cin >> wholeN;
 		std::vector<int> particleMap(wholeN, -1);
-		// int particleMap[wholeN];
 		for (int i = 0; i < wholeN; ++i) std::cin >> particleMap[i];
 		for (int i = 0; i < boneParticles.size(); ++i) {
 			std::vector<int> bonePartNew;
@@ -547,6 +624,31 @@ int main(int argc, char **argv) {
 		}
 	} controlParticles = tempo;
 
+	if (useBones) {
+		int numBones,numVerticies,numTriangles,t1,t2,t3; 
+		double x,y,z; char vORf;
+		std::cin >> numBones;
+		while(numBones--) {
+			std::vector<Vector3d> verticies;
+			std::cin >> numVerticies;
+			while(numVerticies--) {
+				std::cin >> vORf >> x >> y >> z; verticies.push_back(Vector3d(x,y,z));
+			}
+			boneVerticies.push_back(verticies);
+
+			std::vector<Vector3i> triangles;
+			std::cin >> numTriangles;
+			if (handleCollision) {
+				std::vector<bool> trias(numTriangles, false);
+				collBoneTriangles.push_back(trias);
+			}
+			while(numTriangles--) {
+				std::cin >> vORf >> t1 >> t2 >> t3; triangles.push_back(Vector3i(t1-1,t2-1,t3-1));
+			}
+			boneTriangles.push_back(triangles);
+		}
+	}
+
 	if (handleCollision) {
 	// if (false){
 		int c,probNum;
@@ -558,6 +660,15 @@ int main(int argc, char **argv) {
 				std::cin >> muscleIdxs[j] >> triangleIdxs[j];
 			}
 			probableMuscleCollIdx.push_back(muscleIdxs); probableTriangleCollIdx.push_back(triangleIdxs);
+			if (useBones) {
+				std::cin >> probNum;
+				std::vector<int> boneIdxs(probNum);
+				std::vector<int> triBoneIdxs(probNum);
+				for (int j = 0; j < probNum; ++j) {
+					std::cin >> boneIdxs[j] >> triBoneIdxs[j];
+				}
+				probableBoneCollIdx.push_back(boneIdxs); probableTriBoneCollIdx.push_back(triBoneIdxs);
+			}
 		}
 	}
 	std::cout << "All alpha inputs taken!" << std::endl;

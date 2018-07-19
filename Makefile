@@ -81,8 +81,29 @@ meta/particles: meta/tempParticles meta/tempNeighbours
 meta/tempNeighbours: neighbours meta/tempParticles
 	./neighbours < meta/tempParticles > $@
 
-lowObjs/allObjs: $(POLYOBJS)
-	python3 lowObjs/combine.py > $@
+lowObjs/allObjs: lowObjs/combine.py
+	cd lowObjs && python3 combine.py > allObjs && cd ..
+
+meta/interpolatedParticlesBones: interpolatedParticles boneObjs/allObjs
+	cat $^ > $@
+
+meta/interpolatedLimitedBones: meta/choiceInterParticles boneObjs/allObjs
+	cat $^ > $@
+
+boneObjs/allObjs: boneObjs/combine.py
+	cd boneObjs && python3 combine.py > allObjs && cd ..
+
+meta/collReduceBoneOut: collisionReduce meta/interpolatedParticlesBones
+	echo "reduction Start ..." && ./collisionReduce b < meta/interpolatedParticlesBones > $@ && echo "... reduction End"
+
+meta/interpolatedCollisionBones: meta/interpolatedParticlesBones meta/collReduceBoneOut
+	cat $^ > $@
+
+meta/collLimitedBoneOut: collisionReduce meta/interpolatedLimitedBones
+	echo "reduction Start ..." && ./collisionReduce b l < meta/interpolatedLimitedBones > $@ && echo "... reduction End"
+
+meta/interpolatedCLBones: meta/interpolatedLimitedBones meta/collLimitedBoneOut
+	cat $^ > $@
 
 run: stressTest interpolatedParticles
 	./stressTest < interpolatedParticles
@@ -93,8 +114,20 @@ runChoice: stressTest meta/choiceInterParticles
 runAlpha: stressTest meta/interpolatedParticlesAlpha
 	./stressTest c < meta/interpolatedParticlesAlpha
 
+runBones: stressTest meta/interpolatedParticlesBones
+	./stressTest b < meta/interpolatedParticlesBones
+
+runLimitedBones: stressTest meta/interpolatedLimitedBones
+	./stressTest b l < meta/interpolatedLimitedBones
+
+runCollBones: stressTest meta/interpolatedCollisionBones
+	./stressTest b c < meta/interpolatedCollisionBones
+
 runCAlpha: stressTest meta/choiceInterParticlesAlpha
 	./stressTest c l < meta/choiceInterParticlesAlpha
+
+runCLBones: stressTest meta/interpolatedCLBones
+	./stressTest b c l < meta/interpolatedCLBones
 
 clean:
 	rm -f *.o $(OUT)

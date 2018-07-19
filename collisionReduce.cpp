@@ -12,7 +12,18 @@ std::vector< std::vector<Vector3d> > Muscle_interTrisLen;
 bool onlyTranslation;
 std::vector<int> muscles;
 
+std::vector<std::vector<Vector3d> > boneVerticies;
+std::vector<std::vector<Vector3i> > boneTriangles;
+
 int main(int argc, char **argv) {
+	bool remapReq = false, useBones = false;
+	if (argc == 2) {
+		if (argv[1][0] == 'l') remapReq = true;
+		else if (argv[1][0] == 'b') useBones = true;
+	} else if (argc == 3) {
+		useBones = true; remapReq = true;
+	}
+
 	int N, n, numMuscles, numNeighbours;
 	std::cin >> numMuscles;
 
@@ -80,10 +91,39 @@ int main(int argc, char **argv) {
 		Muscle_interTris.push_back(interTris);
 		Muscle_interTrisLen.push_back(interTrisLen);
 	}
+	
+	if (remapReq) {
+		int wholeN; std::cin >> wholeN;
+		std::vector<int> particleMap(wholeN, -1);
+		for (int i = 0; i < wholeN; ++i) std::cin >> particleMap[i];
+	}
+
+	if (useBones) {
+		int numBones,numVerticies,numTriangles,t1,t2,t3; 
+		double x,y,z; char vORf;
+		std::cin >> numBones;
+		while(numBones--) {
+			std::vector<Vector3d> verticies;
+			std::cin >> numVerticies;
+			while(numVerticies--) {
+				std::cin >> vORf >> x >> y >> z; verticies.push_back(Vector3d(x,y,z));
+			}
+			boneVerticies.push_back(verticies);
+
+			std::vector<Vector3i> triangles;
+			std::cin >> numTriangles;
+			while(numTriangles--) {
+				std::cin >> vORf >> t1 >> t2 >> t3; triangles.push_back(Vector3i(t1-1,t2-1,t3-1));
+			}
+			boneTriangles.push_back(triangles);
+		}
+	}
 
 	double factor = 5;
 	std::vector<std::vector<int> > probableMuscleCollIdx;
 	std::vector<std::vector<int> > probableTriangleCollIdx;
+	std::vector<std::vector<int> > probableBoneCollIdx;
+	std::vector<std::vector<int> > probableTriBoneCollIdx;
 	// #pragma omp parallel for
 	for (int s = 0; s < particles.size(); ++s) {
 		int muscleIndex;
@@ -122,12 +162,39 @@ int main(int argc, char **argv) {
 		}
 		// std::cout << " " << s << " " << muscleIdxs.size() << std::endl;
 		probableMuscleCollIdx.push_back(muscleIdxs); probableTriangleCollIdx.push_back(triangleIdxs);
+
+		if (useBones){
+			std::vector<int> boneIdxs;
+			std::vector<int> triBoneIdxs;
+			for (int boneIdx = 0; boneIdx < boneTriangles.size(); ++boneIdx) {
+				for (int triaIdx = 0; triaIdx < boneTriangles[boneIdx].size(); ++triaIdx) {
+					std::vector<Vector3d> tria(3);
+					tria[0] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].x()];
+					tria[1] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].y()];
+					tria[2] = boneVerticies[boneIdx][boneTriangles[boneIdx][triaIdx].z()];
+					if ((tria[0]-particles[s].pos).norm() < factor*particles[s].size.x() ||
+						(tria[1]-particles[s].pos).norm() < factor*particles[s].size.x() ||
+						(tria[2]-particles[s].pos).norm() < factor*particles[s].size.x() ) {
+						boneIdxs.push_back(boneIdx); triBoneIdxs.push_back(triaIdx);
+					}
+				}
+			}
+			probableBoneCollIdx.push_back(boneIdxs); probableTriBoneCollIdx.push_back(triBoneIdxs);
+		}
 	}
 	for (int pmci = 0; pmci < probableMuscleCollIdx.size(); ++pmci) {
-		std::cout << pmci << " " << probableMuscleCollIdx[pmci].size() << std::endl;
+		std::cout << pmci << std::endl;
+		std::cout << probableMuscleCollIdx[pmci].size() << " ";
 		for (int indx = 0; indx < probableMuscleCollIdx[pmci].size(); ++indx) {
 			std::cout << probableMuscleCollIdx[pmci][indx] << " " << probableTriangleCollIdx[pmci][indx] << " ";
-		} if (probableMuscleCollIdx[pmci].size() != 0) std::cout << std::endl;
+		// } if (probableMuscleCollIdx[pmci].size() != 0) std::cout << std::endl;
+		} std::cout << std::endl;
+		if (useBones){
+			std::cout << probableBoneCollIdx[pmci].size() << " ";
+			for (int indx = 0; indx < probableBoneCollIdx[pmci].size(); ++indx) {
+				std::cout << probableBoneCollIdx[pmci][indx] << " " << probableTriBoneCollIdx[pmci][indx] << " ";
+			} std::cout << std::endl;
+		}
 	}
 
 	return 0;
