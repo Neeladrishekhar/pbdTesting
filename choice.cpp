@@ -86,9 +86,9 @@ int main(int argc, char **argv) {
 
 	std::vector<int> choiceMuscles;
 	choiceMuscles.push_back(0);
-	choiceMuscles.push_back(2);
-	choiceMuscles.push_back(10);
-	choiceMuscles.push_back(13);
+	choiceMuscles.push_back(6);
+	// choiceMuscles.push_back(10);
+	// choiceMuscles.push_back(13);
 
 	std::sort(choiceMuscles.begin(), choiceMuscles.end());
 	int numMusclesNew = choiceMuscles.size();

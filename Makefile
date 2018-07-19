@@ -3,8 +3,11 @@
 # tempParticles is tempfile.txt that we get from blender
 # Y forward Z up for exporting from blender for objects in lowObjs
 
-# ./apitrace trace ../../pbdTesting/stressTest l < ../../pbdTesting/meta/choiceInterParticles
+# ../apitrace trace ../../../pbdTesting/stressTest < ../../../pbdTesting/interpolatedParticles
 # ../apitrace dump-images --call-nos=no stressTest.trace
+
+# triangle no-collision strain PBD :-
+# Rendered 855 frames in 1206.16 secs, average of 0.708859 fps
 
 CC := g++
 CFLAGS := -Wall -I/usr/include/eigen3
@@ -25,16 +28,28 @@ objInter:Particle.o objInter.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 collisionReduce:Particle.o collisionReduce.o
-	$(CC) $(LFLAGS) $^ -fopenmp -o $@
+	$(CC) $(LFLAGS) $^ -o $@
 
 choice:Particle.o choice.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 stressTest:Particle.o stressTest.o
-	$(CC) $(LFLAGS) $^ $(GLFLAGS) -fopenmp -o $@
+	$(CC) $(LFLAGS) $^ $(GLFLAGS) -o $@
 
 %.o: %.cpp
-	$(CC) -c -fopenmp $< $(CFLAGS) -o $@
+	$(CC) -c $< $(CFLAGS) -o $@
+
+# collisionReduce:Particle.o collisionReduce.o
+# 	$(CC) $(LFLAGS) $^ -fopenmp -o $@
+
+# choice:Particle.o choice.o
+# 	$(CC) $(LFLAGS) $^ -o $@
+
+# stressTest:Particle.o stressTest.o
+# 	$(CC) $(LFLAGS) $^ $(GLFLAGS) -fopenmp -o $@
+
+# %.o: %.cpp
+# 	$(CC) -c -fopenmp $< $(CFLAGS) -o $@
 
 meta/interpolatedParticlesAlpha: interpolatedParticles meta/collisionReduceOut
 	cat $^ > $@

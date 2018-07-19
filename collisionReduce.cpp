@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
 	double factor = 5;
 	std::vector<std::vector<int> > probableMuscleCollIdx;
 	std::vector<std::vector<int> > probableTriangleCollIdx;
-	#pragma omp parallel for
+	// #pragma omp parallel for
 	for (int s = 0; s < particles.size(); ++s) {
 		int muscleIndex;
 		for (int i = 0; i < muscles.size(); ++i) {
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
 		std::cout << pmci << " " << probableMuscleCollIdx[pmci].size() << std::endl;
 		for (int indx = 0; indx < probableMuscleCollIdx[pmci].size(); ++indx) {
 			std::cout << probableMuscleCollIdx[pmci][indx] << " " << probableTriangleCollIdx[pmci][indx] << " ";
-		} std::cout << std::endl;
+		} if (probableMuscleCollIdx[pmci].size() != 0) std::cout << std::endl;
 	}
 
 	return 0;
