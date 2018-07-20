@@ -60,6 +60,9 @@ meta/collisionReduceOut: collisionReduce interpolatedParticles
 meta/choiceInterParticles: choice interpolatedParticles
 	./choice < interpolatedParticles > $@
 
+meta/choiceInterTetParticles: choice meta/interpolatedTetParticles
+	./choice < meta/interpolatedTetParticles > $@
+
 meta/choiceInterParticlesAlpha: meta/choiceInterParticles meta/collChoiceReduceOut
 	cat $^ > $@
 
@@ -69,10 +72,19 @@ meta/collChoiceReduceOut: collisionReduce meta/choiceInterParticles
 interpolatedParticles: meta/particles meta/particleInterpolInfo
 	cat $^ > $@
 
+meta/interpolatedTetParticles: meta/particles meta/particleTetInterInfo
+	cat $^ > $@
+
 meta/particleInterpolInfo: objInter meta/particleIntermediate
 	./objInter < meta/particleIntermediate > $@
 
+meta/particleTetInterInfo: objInter meta/particleTetInter
+	./objInter < meta/particleTetInter > $@
+
 meta/particleIntermediate: meta/particles lowObjs/allObjs
+	cat $^ > $@
+
+meta/particleTetInter: meta/particles lowTets/allObjs
 	cat $^ > $@
 
 meta/particles: meta/tempParticles meta/tempNeighbours
@@ -110,6 +122,9 @@ run: stressTest interpolatedParticles
 
 runChoice: stressTest meta/choiceInterParticles
 	./stressTest l < meta/choiceInterParticles
+
+runTetra: stressTest meta/choiceInterTetParticles
+	./stressTest l < meta/choiceInterTetParticles
 
 runAlpha: stressTest meta/interpolatedParticlesAlpha
 	./stressTest c < meta/interpolatedParticlesAlpha

@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 
 	std::vector<int> choiceMuscles;
 	choiceMuscles.push_back(0);
-	choiceMuscles.push_back(6);
+	// choiceMuscles.push_back(6);
 	// choiceMuscles.push_back(10);
 	// choiceMuscles.push_back(13);
 

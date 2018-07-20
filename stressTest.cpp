@@ -369,48 +369,6 @@ void idle_func() {
 			}
 		}
 		*/
-		
-		std::vector<Vector3d> goals; std::vector<Matrix3d> Rs;
-		for (int i = 0; i < model.groups.size(); ++i) goals.push_back(Vector3d::Zero());
-		for (int i = 0; i < model.groups.size(); ++i) {
-			Matrix3d A = model_cur.particles[i].A;
-			A += model_cur.particles[i].mass * model_cur.particles[i].pos * model_base.particles[i].pos.transpose();
-			double M = model_cur.particles[i].mass;
-			Vector3d c = model_cur.particles[i].mass * model_cur.particles[i].pos;
-			Vector3d c_base = model_base.particles[i].mass * model_base.particles[i].pos;
-			for (int j = 0; j < model.groups[i].size(); ++j) {
-				A += model_cur.particles[model.groups[i][j]].A;
-				A += model_cur.particles[model.groups[i][j]].mass * model_cur.particles[model.groups[i][j]].pos * model_base.particles[model.groups[i][j]].pos.transpose();
-				M += model_cur.particles[model.groups[i][j]].mass;
-				c += model_cur.particles[model.groups[i][j]].mass * model_cur.particles[model.groups[i][j]].pos;
-				c_base += model_base.particles[model.groups[i][j]].mass * model_base.particles[model.groups[i][j]].pos;
-			}
-			c /= M; c_base /= M;
-			A -= M * c * c_base.transpose();
-
-			Affine3d affA; affA = A;
-			Matrix3d R = affA.rotation();
-			// if (i == 10) std::cout << R << std::endl;
-
-			Rs.push_back(R);
-			// model_cur.particles[i].set_rotation(R*model_base.particles[i].mat3_rot);
-			Vector3d goal = ( R * (model_base.particles[i].pos - c_base) ) + c;
-			// goals[i] = goal;
-			// goals[i] += 0.8 * goal / (model.groups[i].size() + 1.0);
-			goals[i] += 1.0 * goal / (model.groups[i].size() + 1.0);
-			for (int j = 0; j < model.groups[i].size(); ++j) {
-				Vector3d goal = ( R * (model_base.particles[model.groups[i][j]].pos - c_base) ) + c;
-				goals[model.groups[i][j]] += goal / (model.groups[model.groups[i][j]].size() + 1.0);
-			}
-		}
-
-		for (int i = 0; i < model_cur.particles.size(); ++i) {
-			model_cur.particles[i].pos += 1*(goals[i] - model_cur.particles[i].pos);
-			model_cur.particles[i].set_rotation(Rs[i]*model_base.particles[i].mat3_rot); /// this might be wrong
-			// model_cur.particles[i].set_rotation(Rs[i]); /// this might be the correct way
-		}
-
-		// break; // just for observations
 
 		// try to detect collision (sphere to plane/triangle)
 		if (handleCollision) {
@@ -475,6 +433,48 @@ void idle_func() {
 				}
 			}
 		}
+		
+		std::vector<Vector3d> goals; std::vector<Matrix3d> Rs;
+		for (int i = 0; i < model.groups.size(); ++i) goals.push_back(Vector3d::Zero());
+		for (int i = 0; i < model.groups.size(); ++i) {
+			Matrix3d A = model_cur.particles[i].A;
+			A += model_cur.particles[i].mass * model_cur.particles[i].pos * model_base.particles[i].pos.transpose();
+			double M = model_cur.particles[i].mass;
+			Vector3d c = model_cur.particles[i].mass * model_cur.particles[i].pos;
+			Vector3d c_base = model_base.particles[i].mass * model_base.particles[i].pos;
+			for (int j = 0; j < model.groups[i].size(); ++j) {
+				A += model_cur.particles[model.groups[i][j]].A;
+				A += model_cur.particles[model.groups[i][j]].mass * model_cur.particles[model.groups[i][j]].pos * model_base.particles[model.groups[i][j]].pos.transpose();
+				M += model_cur.particles[model.groups[i][j]].mass;
+				c += model_cur.particles[model.groups[i][j]].mass * model_cur.particles[model.groups[i][j]].pos;
+				c_base += model_base.particles[model.groups[i][j]].mass * model_base.particles[model.groups[i][j]].pos;
+			}
+			c /= M; c_base /= M;
+			A -= M * c * c_base.transpose();
+
+			Affine3d affA; affA = A;
+			Matrix3d R = affA.rotation();
+			// if (i == 10) std::cout << R << std::endl;
+
+			Rs.push_back(R);
+			// model_cur.particles[i].set_rotation(R*model_base.particles[i].mat3_rot);
+			Vector3d goal = ( R * (model_base.particles[i].pos - c_base) ) + c;
+			// goals[i] = goal;
+			// goals[i] += 0.8 * goal / (model.groups[i].size() + 1.0);
+			goals[i] += 1.0 * goal / (model.groups[i].size() + 1.0);
+			for (int j = 0; j < model.groups[i].size(); ++j) {
+				Vector3d goal = ( R * (model_base.particles[model.groups[i][j]].pos - c_base) ) + c;
+				goals[model.groups[i][j]] += goal / (model.groups[model.groups[i][j]].size() + 1.0);
+			}
+		}
+
+		for (int i = 0; i < model_cur.particles.size(); ++i) {
+			model_cur.particles[i].pos += 1*(goals[i] - model_cur.particles[i].pos);
+			model_cur.particles[i].set_rotation(Rs[i]*model_base.particles[i].mat3_rot); /// this might be wrong
+			// model_cur.particles[i].set_rotation(Rs[i]); /// this might be the correct way
+		}
+
+		// break; // just for observations
 	}
 	
 	for (int i = 0; i < model.particles.size(); ++i) {
