@@ -50,15 +50,19 @@ int scapula_arr[] = {0,1,2,43,44,45,46,74,75,76,183,216,217,218,219,250};
 std::vector<int> scapula(scapula_arr, scapula_arr + sizeof(scapula_arr) / sizeof(int) );
 Vector3d humerusPivot(7.5779,-16.2654,131.5013);
 Matrix3d humerusRot = Matrix3d::Identity();
+// int humerus_arr[] = {47,48,49,98,101,102,104,136,139,140,141,142,143,144,145,148,149,157,159,160,165,169,172,174,186,193,194,195,197,
+// 				199,200,201,204,208,209,246,247,248,249,251,252,253,254,281,282,283,284,285,286,288,289,290,291,317,318,361,383,
+// 				384,386,404,405};
 int humerus_arr[] = {47,48,49,98,101,102,104,136,139,140,141,142,143,144,145,148,149,157,159,160,165,169,172,174,186,193,194,195,197,
-				199,200,201,204,208,209,246,247,248,249,251,252,253,254,281,282,283,284,285,286,288,289,290,291,317,318,361,383,
+				199,200,201,204,208,209,246,247,248,249,251,252,281,282,283,284,285,286,288,289,290,291,317,318,361,383,
 				384,386,404,405};
 std::vector<int> humerus(humerus_arr, humerus_arr + sizeof(humerus_arr) / sizeof(int) );
 Vector3d ulnaPivot(6.4562,-20.8208,103.8195);
 Matrix3d ulnaRot = Matrix3d::Identity();
 int ulna_arr[] = {40,41,180,181,182,196,214,215,313,314,315,316,349,362,365,370,371,372,377,378,380,381,382,399,401,402,403,408};
 std::vector<int> ulna(ulna_arr, ulna_arr + sizeof(ulna_arr) / sizeof(int) );
-int radius_arr[] = {278,279,280,345,346,347,348,354,357,364,369,392,393,394};
+// int radius_arr[] = {278,279,280,345,346,347,348,354,357,364,369,392,393,394};
+int radius_arr[] = {279,280,345,346,347,348,354,357,364,369,392,393,394};
 std::vector<int> radius(radius_arr, radius_arr + sizeof(radius_arr) / sizeof(int) );
 // int stuck_arr[] = {0,1,2,43,44,45,46,74,75,76,105,106,107,108,143,144,145,146,147,183,194,201,202,216,217,218,219,220,250,251,252,253,254,281,317,349,359,360,361,370,383,384,386,402,404,405};
 // std::vector<int> stuck(stuck_arr, stuck_arr + sizeof(stuck_arr) / sizeof(int) );
@@ -74,7 +78,7 @@ bool useBones = false;
 bool pauseManual = false;
 
 class Shape
-{
+{ // a fast method simulation of human musculature
 public:	
 	std::vector<Particle> particles;
 	std::vector<std::vector<int> > groups;
@@ -163,8 +167,19 @@ public:
 				Vector3d colorScale(std::max(std::min(stress.x(),1.0),-1.0), std::max(std::min(stress.y(),1.0),-1.0), std::max(std::min(stress.z(),1.0),-1.0));
 				std::vector<Vector3d> colors(3);
 				// for (int t = 0; t < 3; ++t) { colors[t][0] = std::max(0.0, colorScale[t]); colors[t][2] = -1.0 * std::min(0.0, colorScale[t]); colors[t][1] = 1.0 - std::max(colorScale[t], -1*colorScale[t]); }
-				double grey = 0.2;
-				for (int t = 0; t < 3; ++t) { colors[t][0] = 1-((1 - std::max(0.0, colorScale[t]))*(1-grey)); colors[t][2] = 1-((1 - (-1.0 * std::min(0.0, colorScale[t])))*(1-grey)); colors[t][1] = grey; }
+				double grey = 0.8;
+				// for (int t = 0; t < 3; ++t) { colors[t][0] = 1-((1 - std::max(0.0, colorScale[t]))*(1-grey)); colors[t][2] = 1-((1 - (-1.0 * std::min(0.0, colorScale[t])))*(1-grey)); colors[t][1] = grey; }
+				for (int t = 0; t < 3; ++t) {
+					if (colorScale[t] > 0) {
+						colors[t][0] = grey + ((1 - grey) * colorScale[t]);
+						colors[t][1] = grey - (grey * colorScale[t]);
+						colors[t][2] = grey - (grey * colorScale[t]);
+					} else {
+						colors[t][0] = grey + (grey * colorScale[t]);
+						colors[t][1] = grey + (grey * colorScale[t]);
+						colors[t][2] = grey - ((1 - grey) * colorScale[t]);
+					}
+				}
 
 				// glBegin(GL_TRIANGLES);
 				glBegin(GL_POLYGON);
@@ -186,7 +201,7 @@ public:
 		}
 
 		if (useBones) {
-			GLfloat boneColor[] = {.8f, .8f, .8f, 1.f};
+			GLfloat boneColor[] = {.5f, .5f, .5f, 1.f};
 			for (int boneIdx = 0; boneIdx < boneTriangles.size(); ++boneIdx) {
 				for (int triaIdx = 0; triaIdx < boneTriangles[boneIdx].size(); ++triaIdx) {
 					std::vector<Vector3d> tria(3);
@@ -323,24 +338,27 @@ void idle_func() {
 
 	// while (constraint(model_cur.particles)) {
 	int step = 2;
-	while (step--) {
+	while (step--) { // reduce time-step, outer limit, FVM
 
 		// apply_constraint(model_cur.particles);
-		int maxVal = 100;
+		int maxVal = 90;
 		double vis = 1.0*idle_num; int vist = vis/(2*maxVal); vis -= vist*2*maxVal; if (vis > maxVal) vis = maxVal-(vis-maxVal);// vis/=2.0;
 		
 		for (int i = 0; i < boneParticles[0].size(); ++i) {
 			model_cur.particles[boneParticles[0][i]].pos = model_base.particles[boneParticles[0][i]].pos;
 		}
-		// humerusRot = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
+		// humerusRot = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitX());
+		// humerusRot = AngleAxisd(vis*M_PI/180, Vector3d(0.0,0.1,0.9).normalized());
 		for (int i = 0; i < boneParticles[1].size(); ++i) {
 			model_cur.particles[boneParticles[1][i]].pos = (humerusRot * (model_base.particles[boneParticles[1][i]].pos - humerusPivot)) + humerusPivot;
 		}
+		// ulnaRot = AngleAxisd(vis*M_PI/180, Vector3d(-0.1,0.1,0.9).normalized());
 		ulnaRot = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
 		for (int i = 0; i < boneParticles[2].size(); ++i) {
-			model_cur.particles[boneParticles[2][i]].pos = (ulnaRot * (model_base.particles[boneParticles[2][i]].pos - ulnaPivot)) + ulnaPivot;
+			model_cur.particles[boneParticles[2][i]].pos = (ulnaRot * (model_base.particles[boneParticles[2][i]].pos - ((boneParticles[2][i] == 41) ? Vector3d(0.5,0,0) : Vector3d(0,0,0)) - ulnaPivot)) + ulnaPivot;
 			model_cur.particles[boneParticles[2][i]].pos = (humerusRot * (model_cur.particles[boneParticles[2][i]].pos - humerusPivot)) + humerusPivot;
 		}
+		// if (idle_num <= 5) model_cur.particles[41].pos -= Vector3d(0.5,0,0);
 		/*
 		Matrix3d Rotate;
 		Rotate = AngleAxisd(vis*M_PI/180, -1*Vector3d::UnitY());
@@ -373,36 +391,39 @@ void idle_func() {
 		// try to detect collision (sphere to plane/triangle)
 		if (handleCollision) {
 			for (int s = 0; s < model.particles.size(); ++s) {
+				// if (controlParticles[s]) continue;
 				// std::cout << "Hello World! " << omp_get_thread_num() << " of " << omp_get_num_threads() << std::endl;
 				// std::cout << idle_num << " " << step << " " << s << std::endl;
-				for (int closeTrias = 0; closeTrias < probableMuscleCollIdx[s].size(); ++closeTrias){
-					int i = probableTriangleCollIdx[s][closeTrias], muscleCount = probableMuscleCollIdx[s][closeTrias];
-					std::vector<Vector3d> tria(3);
-					for (int t = 0; t < 3; ++t) { tria[t] = Vector3d::Zero();
-						for (int p = 0; p < Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]].size(); ++p) {
-							if (onlyTranslation) {
-								tria[t] += Muscle_interPw[muscleCount][Muscle_interTris[muscleCount][i][t]][p] * (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].pos + Muscle_interVec[muscleCount][Muscle_interTris[muscleCount][i][t]][p]);
-							} else {
-								tria[t] += Muscle_interPw[muscleCount][Muscle_interTris[muscleCount][i][t]][p] * (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].pos + (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].mat3_rot*Muscle_interVec[muscleCount][Muscle_interTris[muscleCount][i][t]][p]));
+				if (!controlParticles[s]) {
+					for (int closeTrias = 0; closeTrias < probableMuscleCollIdx[s].size(); ++closeTrias){
+						int i = probableTriangleCollIdx[s][closeTrias], muscleCount = probableMuscleCollIdx[s][closeTrias];
+						std::vector<Vector3d> tria(3);
+						for (int t = 0; t < 3; ++t) { tria[t] = Vector3d::Zero();
+							for (int p = 0; p < Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]].size(); ++p) {
+								if (onlyTranslation) {
+									tria[t] += Muscle_interPw[muscleCount][Muscle_interTris[muscleCount][i][t]][p] * (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].pos + Muscle_interVec[muscleCount][Muscle_interTris[muscleCount][i][t]][p]);
+								} else {
+									tria[t] += Muscle_interPw[muscleCount][Muscle_interTris[muscleCount][i][t]][p] * (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].pos + (model_cur.particles[Muscle_interP[muscleCount][Muscle_interTris[muscleCount][i][t]][p]].mat3_rot*Muscle_interVec[muscleCount][Muscle_interTris[muscleCount][i][t]][p]));
+								}
 							}
+						}						
+						Vector3d side1 = tria[1]-tria[0];
+						Vector3d side2 = tria[2]-tria[0];
+						Vector3d nor = (side1.cross(side2)).normalized();
+						// using normal and triangle verticies for collision
+			
+						if ((nor.dot(model_cur.particles[s].pos+(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) * (nor.dot(model_cur.particles[s].pos-(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) >= 0) continue;
+			
+						Vector3d planeIntersectionPoint = model_cur.particles[s].pos + (((nor.dot(tria[0]-model_cur.particles[s].pos))/nor.squaredNorm()) * nor);
+						planeIntersectionPoint -= tria[0];
+						double alpha = ((planeIntersectionPoint.x()*side2.y())-(planeIntersectionPoint.y()*side2.x()))/((side1.x()*side2.y())-(side1.y()*side2.x()));
+						double beta = ((planeIntersectionPoint.x()*side1.y())-(planeIntersectionPoint.y()*side1.x()))/((side2.x()*side1.y())-(side2.y()*side1.x()));
+						if (alpha < 0.0 || beta < 0.0 || alpha+beta > 1.0) {
+							continue;
+						} else { // there is a collision
+							collisionTriangles[muscleCount][i] = true;
+							model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
 						}
-					}						
-					Vector3d side1 = tria[1]-tria[0];
-					Vector3d side2 = tria[2]-tria[0];
-					Vector3d nor = (side1.cross(side2)).normalized();
-					// using normal and triangle verticies for collision
-		
-					if ((nor.dot(model_cur.particles[s].pos+(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) * (nor.dot(model_cur.particles[s].pos-(model_cur.particles[s].size.x()*nor)) - nor.dot(tria[0])) >= 0) continue;
-		
-					Vector3d planeIntersectionPoint = model_cur.particles[s].pos + (((nor.dot(tria[0]-model_cur.particles[s].pos))/nor.squaredNorm()) * nor);
-					planeIntersectionPoint -= tria[0];
-					double alpha = ((planeIntersectionPoint.x()*side2.y())-(planeIntersectionPoint.y()*side2.x()))/((side1.x()*side2.y())-(side1.y()*side2.x()));
-					double beta = ((planeIntersectionPoint.x()*side1.y())-(planeIntersectionPoint.y()*side1.x()))/((side2.x()*side1.y())-(side2.y()*side1.x()));
-					if (alpha < 0.0 || beta < 0.0 || alpha+beta > 1.0) {
-						continue;
-					} else { // there is a collision
-						collisionTriangles[muscleCount][i] = true;
-						model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
 					}
 				}
 				if (useBones) {
@@ -427,7 +448,12 @@ void idle_func() {
 							continue;
 						} else { // there is a collision
 							collBoneTriangles[boneCount][triaCount] = true;
-							model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
+							// model_cur.particles[s].pos = planeIntersectionPoint + tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
+							planeIntersectionPoint += tria[0] + (model_cur.particles[s].size.x()+0.0001)*nor;
+							if ((planeIntersectionPoint - model_cur.particles[s].pos).norm() > 0.75)
+								model_cur.particles[s].pos += 0.75*(planeIntersectionPoint - model_cur.particles[s].pos)/(planeIntersectionPoint - model_cur.particles[s].pos).norm();
+							else
+								model_cur.particles[s].pos = planeIntersectionPoint;
 						}
 					}	
 				}
@@ -463,12 +489,19 @@ void idle_func() {
 			// goals[i] += 0.8 * goal / (model.groups[i].size() + 1.0);
 			goals[i] += 1.0 * goal / (model.groups[i].size() + 1.0);
 			for (int j = 0; j < model.groups[i].size(); ++j) {
+				// if (model.groups[i][j] >= 69 && model.groups[i][j] <= 70) continue;
 				Vector3d goal = ( R * (model_base.particles[model.groups[i][j]].pos - c_base) ) + c;
 				goals[model.groups[i][j]] += goal / (model.groups[model.groups[i][j]].size() + 1.0);
 			}
 		}
 
 		for (int i = 0; i < model_cur.particles.size(); ++i) {
+			// if (!(i == 72 || i == 73 || i == 68 || i == 67 || i == 66))
+			// if (i == 71) std::cout << idle_num << " " << (goals[i] - model_cur.particles[i].pos).norm() << std::endl;
+			// if (i == 71 && (goals[i] - model_cur.particles[i].pos).norm() > 0.75) {
+			// 	goals[i] = (0.75*(goals[i] - model_cur.particles[i].pos)/(goals[i] - model_cur.particles[i].pos).norm()) + model_cur.particles[i].pos;
+			// }
+			// if (!(i == 72 || i == 73)) 
 			model_cur.particles[i].pos += 1*(goals[i] - model_cur.particles[i].pos);
 			model_cur.particles[i].set_rotation(Rs[i]*model_base.particles[i].mat3_rot); /// this might be wrong
 			// model_cur.particles[i].set_rotation(Rs[i]); /// this might be the correct way
@@ -481,8 +514,15 @@ void idle_func() {
 		// if (i == 25) std::cout << model_cur.particles[i].quat_rot.w() << " " << model_cur.particles[i].quat_rot.x() << " " << model_cur.particles[i].quat_rot.y() << " " << model_cur.particles[i].quat_rot.z() << std::endl;
 		
 		// model.particles[i].vel = Vector3d::Zero();
-		model.particles[i].vel = (model_cur.particles[i].pos - model.particles[i].pos) / delta_t;
-		model.particles[i].pos = model_cur.particles[i].pos;
+		// if (i == 72){
+		// 	model.particles[i].vel = model_cur.particles[i].pos - model.particles[i].pos;
+		// 	if (model.particles[i].vel.norm() > 0.05) model.particles[i].vel *= 0.05/model.particles[i].vel.norm();
+		// 	model.particles[i].pos += model.particles[i].vel;
+		// 	model.particles[i].vel /= delta_t;
+		// } else {
+			model.particles[i].vel = (model_cur.particles[i].pos - model.particles[i].pos) / delta_t;
+			model.particles[i].pos = model_cur.particles[i].pos;
+		// }
 
 		Matrix3d omega_new = model_cur.particles[i].mat3_rot * model.particles[i].mat3_rot.inverse();
 		// if (AngleAxisd(w_new).axis().dot(AngleAxisd(model.particles[i].wQ).axis()) < 0) {
@@ -539,6 +579,8 @@ int main(int argc, char **argv) {
 		std::vector<double> info(7); double idx;
 		std::cin >> idx >> info[0] >> info[1] >> info[2] >> info[3] >> info[4] >> info[5] >> info[6];		
 		particles[int(idx)] = Particle(info);
+		// if (int(idx) >= 66 && int(idx) <= 67) particles[int(idx)].mass = 0.0;
+		// if (int(idx) >= 69 && int(idx) <= 70) particles[int(idx)].mass = 100.0;
 	}
 
 	std::cin >> numNeighbours;
@@ -547,11 +589,13 @@ int main(int argc, char **argv) {
 		std::cin >> index;
 		for(int i = 0; i < numNeighbours; ++i) {
 			std::cin >> num;
+			// groups[index].push_back(num);
 			growUps[index].insert(num);
 			growUps[num].insert(index);
 		}
 	}
 	for (int i = 0; i < N; ++i) {
+		// if (i >= 69 && i <= 70) continue;
 		groups[i] = std::vector<int> (growUps[i].size());
 		std::copy(growUps[i].begin(), growUps[i].end(), groups[i].begin());
 	}
@@ -615,6 +659,7 @@ int main(int argc, char **argv) {
 				if (particleMap[boneParticles[i][m]] >= 0) bonePartNew.push_back(particleMap[boneParticles[i][m]]);
 			} boneParticles[i] = bonePartNew;
 		}
+		// std::cout << particleMap[276] << " " << particleMap[277] << std::endl; // 69 70
 	}
 
 	std::vector<bool> tempo(particles.size(), false);

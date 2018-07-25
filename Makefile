@@ -108,7 +108,7 @@ boneObjs/allObjs: boneObjs/combine.py
 meta/collReduceBoneOut: collisionReduce meta/interpolatedParticlesBones
 	echo "reduction Start ..." && ./collisionReduce b < meta/interpolatedParticlesBones > $@ && echo "... reduction End"
 
-meta/interpolatedCollisionBones: meta/interpolatedParticlesBones meta/collReduceBoneOut
+meta/interpolatedCollisionBones: meta/interpolatedParticlesBones #meta/collReduceBoneOut
 	cat $^ > $@
 
 meta/collLimitedBoneOut: collisionReduce meta/interpolatedLimitedBones

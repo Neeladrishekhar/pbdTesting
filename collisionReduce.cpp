@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	double factor = 5;
+	double factor = 5, defFactor = 5;
 	std::vector<std::vector<int> > probableMuscleCollIdx;
 	std::vector<std::vector<int> > probableTriangleCollIdx;
 	std::vector<std::vector<int> > probableBoneCollIdx;
@@ -130,6 +130,7 @@ int main(int argc, char **argv) {
 		for (int i = 0; i < muscles.size(); ++i) {
 			if (s < muscles[i]) {muscleIndex = i; break;}
 		}
+		if (muscleIndex == muscles.size()-1) factor = 15; else factor = defFactor;
 		std::vector<int> muscleIdxs;
 		std::vector<int> triangleIdxs;
 		
