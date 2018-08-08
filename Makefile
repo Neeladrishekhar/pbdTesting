@@ -9,8 +9,9 @@
 # triangle no-collision strain PBD :-
 # Rendered 855 frames in 1206.16 secs, average of 0.708859 fps
 
-CC := g++
-CFLAGS := -Wall -I/usr/include/eigen3
+CC := g++ -O3
+# CFLAGS := -Wall -I/usr/include/eigen3
+CFLAGS := -I/usr/include/eigen3
 LFLAGS :=
 GLFLAGS := -lglut -lGLU -lGL -lm -fPIC
 
@@ -108,7 +109,7 @@ boneObjs/allObjs: boneObjs/combine.py
 meta/collReduceBoneOut: collisionReduce meta/interpolatedParticlesBones
 	echo "reduction Start ..." && ./collisionReduce b < meta/interpolatedParticlesBones > $@ && echo "... reduction End"
 
-meta/interpolatedCollisionBones: meta/interpolatedParticlesBones #meta/collReduceBoneOut
+meta/interpolatedCollisionBones: meta/interpolatedParticlesBones meta/collReduceBoneOut
 	cat $^ > $@
 
 meta/collLimitedBoneOut: collisionReduce meta/interpolatedLimitedBones
